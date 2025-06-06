@@ -1,0 +1,15 @@
+Position:
+  book_pos_1_x: 1381
+  book_pos_1_y: 122
+  book_pos_2_x: 2863
+  book_pos_2_y: 2037
+  next_page_x: 3754
+  next_page_y: 2083
+
+Times:
+  delay_to_start: 10
+  min_delay_between: 3.0
+  max_delay_between: 5.0
+
+General:
+  pages_count: 3838
