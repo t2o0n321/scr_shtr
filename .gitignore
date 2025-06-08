@@ -1,2 +1,4 @@
 venv/
 *note*
+positions.yaml
+conf.yaml

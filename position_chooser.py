@@ -1,11 +1,10 @@
 import tkinter as tk
 import yaml
-import time
 
 class MousePositionGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Set Mouse Positions")
+        self.root.title("Edit Mouse Positions")
         
         # Make window semi-transparent
         self.root.attributes('-alpha', 0.7)
@@ -24,28 +23,68 @@ class MousePositionGUI:
         # Bind Escape key to save positions and exit
         self.root.bind('<Escape>', self.save_and_exit)
         
-        # Store markers, labels, and positions
-        self.positions = []
+        # Bind 'r' key to reset all positions to zero
+        self.root.bind('r', self.reset_positions)
+        
+        # Load and store initial data
+        self.initial_data = self.load_initial_data()
+        self.data = self.initial_data.copy()
         self.markers = []
         self.labels = []
+
+    def load_initial_data(self):
+        try:
+            with open('conf.yaml', 'r') as f:
+                data = yaml.safe_load(f) or {}
+                # Extract or set default Position section
+                position_data = data.get('Position', {})
+                return {
+                    'Position': {
+                        'book_pos_1_x': position_data.get('book_pos_1_x', 0),
+                        'book_pos_1_y': position_data.get('book_pos_1_y', 0),
+                        'book_pos_2_x': position_data.get('book_pos_2_x', 0),
+                        'book_pos_2_y': position_data.get('book_pos_2_y', 0),
+                        'next_page_x': position_data.get('next_page_x', 0),
+                        'next_page_y': position_data.get('next_page_y', 0)
+                    }
+                }
+        except FileNotFoundError:
+            return {'Position': {'book_pos_1_x': 0, 'book_pos_1_y': 0, 'book_pos_2_x': 0, 'book_pos_2_y': 0, 'next_page_x': 0, 'next_page_y': 0}}
 
     def set_position(self, event):
         # Get click coordinates
         x, y = event.x, event.y
         
-        # If third click, reset positions, markers, and labels
-        if len(self.positions) >= 2:
+        # If fourth click, reset Position section to zeros
+        position_keys = ['book_pos_1_x', 'book_pos_1_y', 'book_pos_2_x', 'book_pos_2_y', 'next_page_x', 'next_page_y']
+        if all(self.data['Position'].get(k, 0) != 0 for k in position_keys):
             # Clear canvas markers and labels
             for marker in self.markers:
                 self.canvas.delete(marker)
             for label in self.labels:
                 self.canvas.delete(label)
-            # Reset lists
-            self.positions = []
+            # Reset Position section
+            self.data['Position'] = {k: 0 for k in position_keys}
             self.markers = []
             self.labels = []
         
-        # Add new position and marker
+        # Determine which position to set
+        if self.data['Position']['book_pos_1_x'] == 0 or self.data['Position']['book_pos_1_y'] == 0:
+            self.data['Position']['book_pos_1_x'] = x
+            self.data['Position']['book_pos_1_y'] = y
+            label_text = "book_pos_1"
+        elif self.data['Position']['book_pos_2_x'] == 0 or self.data['Position']['book_pos_2_y'] == 0:
+            self.data['Position']['book_pos_2_x'] = x
+            self.data['Position']['book_pos_2_y'] = y
+            label_text = "book_pos_2"
+        elif self.data['Position']['next_page_x'] == 0 or self.data['Position']['next_page_y'] == 0:
+            self.data['Position']['next_page_x'] = x
+            self.data['Position']['next_page_y'] = y
+            label_text = "next_page"
+        else:
+            return
+        
+        # Add marker
         marker_size = 5
         marker = self.canvas.create_oval(
             x - marker_size, y - marker_size,
@@ -55,34 +94,42 @@ class MousePositionGUI:
         self.markers.append(marker)
         
         # Add label to the right of the click position
-        label_text = str(len(self.positions) + 1)  # "1" or "2"
         label = self.canvas.create_text(
-            x + 20, y,  # 20 pixels to the right
+            x + 70, y,
             text=label_text,
-            fill='red',  # Changed to red
+            fill='red',
             font=('Arial', 12, 'bold')
         )
         self.labels.append(label)
-        self.positions.append((x, y))
-        
-        # Schedule label removal after 2 seconds
-        self.root.after(2000, lambda: self.remove_label(label))
 
-    def remove_label(self, label_id):
-        if label_id in self.labels:
-            self.canvas.delete(label_id)
-            self.labels.remove(label_id)
+    def reset_positions(self, event):
+        # Reset all positions to zero
+        for marker in self.markers:
+            self.canvas.delete(marker)
+        for label in self.labels:
+            self.canvas.delete(label)
+        self.data['Position'] = {
+            'book_pos_1_x': 0, 'book_pos_1_y': 0,
+            'book_pos_2_x': 0, 'book_pos_2_y': 0,
+            'next_page_x': 0, 'next_page_y': 0
+        }
+        self.markers = []
+        self.labels = []
 
     def save_and_exit(self, event):
-        # Save positions to YAML file
-        if self.positions:
-            data = {
-                'positions': [
-                    {'x': pos[0], 'y': pos[1]} for pos in self.positions
-                ]
-            }
-            with open('positions.yaml', 'w') as f:
-                yaml.dump(data, f, default_flow_style=False)
+        # Load original file to preserve other sections
+        try:
+            with open('conf.yaml', 'r') as f:
+                original_data = yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            original_data = {}
+        
+        # Update only the Position section
+        original_data['Position'] = self.data['Position']
+        
+        # Save back to YAML file
+        with open('conf.yaml', 'w') as f:
+            yaml.dump(original_data, f, default_flow_style=False)
         
         # Exit the application
         self.root.quit()
